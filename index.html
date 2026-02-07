@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#667eea">
-    <title>OKVIP Team Manager</title>
+    <title>OKVIP Team Manager - Real-time Sync</title>
     <link rel="manifest" href="manifest.json">
     <style>
         * {
@@ -43,6 +43,21 @@
             color: white;
             font-size: 24px;
             margin: 0;
+        }
+
+        .sync-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #48bb78;
+            margin-left: 10px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
 
         .header-buttons {
@@ -99,7 +114,6 @@
             overflow-y: auto;
         }
 
-        /* Accounts Grid */
         .accounts-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -149,7 +163,6 @@
             margin-bottom: 15px;
         }
 
-        /* Account Details View */
         .detail-view {
             max-width: 800px;
             margin: 0 auto;
@@ -207,7 +220,6 @@
             border-top: 2px solid #eee;
         }
 
-        /* Sheet View - Google Sheets Style */
         .sheet-view {
             background: white;
             padding: 20px;
@@ -312,7 +324,6 @@
             background: #38a169;
         }
 
-        /* Modal */
         .modal {
             display: none;
             position: fixed;
@@ -430,12 +441,28 @@
         .hidden {
             display: none !important;
         }
+
+        .loading {
+            text-align: center;
+            padding: 100px 20px;
+        }
+
+        .loading::after {
+            content: '⏳';
+            font-size: 48px;
+            animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
     <div class="app-container">
         <div class="header">
-            <h1>🎯 OKVIP Team Manager</h1>
+            <h1>🎯 OKVIP Team Manager <span class="sync-indicator" id="syncIndicator"></span></h1>
             <div class="header-buttons">
                 <button class="btn btn-primary" onclick="showAddAccount()">+ Thêm Account</button>
                 <button class="btn btn-secondary" onclick="showSheet()">📊 Bảng Dữ Liệu</button>
@@ -444,18 +471,13 @@
         </div>
 
         <div class="main-content">
-            <!-- Accounts List View -->
-            <div id="accountsView"></div>
-
-            <!-- Account Detail View -->
+            <div id="loadingScreen" class="loading">Đang kết nối...</div>
+            <div id="accountsView" class="hidden"></div>
             <div id="detailView" class="hidden"></div>
-
-            <!-- Sheet View -->
             <div id="sheetView" class="hidden"></div>
         </div>
     </div>
 
-    <!-- Join Team Modal -->
     <div id="joinModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -464,69 +486,85 @@
             </div>
 
             <div class="form-group">
-                <label>Nhập Mã Chia Sẻ</label>
-                <input type="text" id="shareCodeInput" placeholder="Nhập mã 8 ký tự...">
+                <label>Nhập Mã Team (8 ký tự)</label>
+                <input type="text" id="shareCodeInput" placeholder="VD: ABC12345" maxlength="8">
             </div>
 
-            <button class="btn btn-primary" style="width: 100%; margin-bottom: 20px;" onclick="joinTeam()">Tham Gia</button>
+            <button class="btn btn-primary" style="width: 100%; margin-bottom: 20px;" onclick="joinTeam()">Tham Gia Team</button>
 
             <div style="background: #f7fafc; padding: 20px; border-radius: 10px;">
-                <h3 style="color: #667eea; margin-bottom: 15px;">📤 Mã Của Bạn</h3>
+                <h3 style="color: #667eea; margin-bottom: 15px;">📤 Mã Team Của Bạn</h3>
                 <div class="share-code" id="myShareCode">-</div>
                 <button class="btn btn-secondary" style="width: 100%;" onclick="copyShareCode()">📋 Copy Mã</button>
+                <p style="color: #666; font-size: 13px; margin-top: 10px; text-align: center;">
+                    Chia sẻ mã này cho team để cùng làm việc
+                </p>
             </div>
         </div>
     </div>
 
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
     <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBXOCKEPPLH8vN9VqYYqQZ8mN_Vh4HxLqw",
+            authDomain: "okvip-manager.firebaseapp.com",
+            databaseURL: "https://okvip-manager-default-rtdb.firebaseio.com",
+            projectId: "okvip-manager",
+            storageBucket: "okvip-manager.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef123456"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        let currentTeamCode = null;
         let accounts = [];
         let sheetData = [];
-        let shareCode = null;
         let currentView = 'accounts';
 
         // Initialize
         async function init() {
-            await loadData();
+            // Get or create team code from localStorage
+            currentTeamCode = localStorage.getItem('okvip_team_code');
+            
+            if (!currentTeamCode) {
+                currentTeamCode = generateShareCode();
+                localStorage.setItem('okvip_team_code', currentTeamCode);
+            }
+
+            // Setup real-time listeners
+            setupRealtimeListeners();
+            
+            // Show UI
+            document.getElementById('loadingScreen').classList.add('hidden');
             showAccountsView();
             updateShareCodeDisplay();
         }
 
-        // Load data
-        async function loadData() {
-            try {
-                const codeResult = await window.storage.get('team_share_code', true);
-                if (codeResult) shareCode = codeResult.value;
-
-                const accountsResult = await window.storage.get('accounts_data', true);
-                if (accountsResult) accounts = JSON.parse(accountsResult.value);
-
-                const sheetResult = await window.storage.get('sheet_data', true);
-                if (sheetResult) sheetData = JSON.parse(sheetResult.value);
-            } catch (error) {
-                if (!shareCode) {
-                    shareCode = generateShareCode();
-                    await saveShareCode();
+        function setupRealtimeListeners() {
+            // Listen to accounts changes
+            database.ref(`teams/${currentTeamCode}/accounts`).on('value', (snapshot) => {
+                const data = snapshot.val();
+                accounts = data ? Object.values(data) : [];
+                if (currentView === 'accounts') {
+                    renderAccounts();
                 }
-            }
-        }
+            });
 
-        // Save data
-        async function saveData() {
-            try {
-                await window.storage.set('accounts_data', JSON.stringify(accounts), true);
-                await window.storage.set('sheet_data', JSON.stringify(sheetData), true);
-                showNotification('Đã lưu dữ liệu!');
-            } catch (error) {
-                console.error('Save error:', error);
-            }
-        }
-
-        async function saveShareCode() {
-            try {
-                await window.storage.set('team_share_code', shareCode, true);
-            } catch (error) {
-                console.error('Error saving share code:', error);
-            }
+            // Listen to sheet data changes
+            database.ref(`teams/${currentTeamCode}/sheetData`).on('value', (snapshot) => {
+                const data = snapshot.val();
+                sheetData = data ? Object.values(data) : [];
+                if (currentView === 'sheet') {
+                    renderSheetTable();
+                }
+            });
         }
 
         function generateShareCode() {
@@ -538,6 +576,25 @@
             return code;
         }
 
+        // Save to Firebase
+        async function saveAccounts() {
+            const accountsObj = {};
+            accounts.forEach(acc => {
+                accountsObj[acc.id] = acc;
+            });
+            await database.ref(`teams/${currentTeamCode}/accounts`).set(accountsObj);
+            showNotification('✅ Đã đồng bộ với team!');
+        }
+
+        async function saveSheetData() {
+            const sheetObj = {};
+            sheetData.forEach(row => {
+                sheetObj[row.id] = row;
+            });
+            await database.ref(`teams/${currentTeamCode}/sheetData`).set(sheetObj);
+            showNotification('✅ Đã đồng bộ bảng dữ liệu!');
+        }
+
         // Show Accounts View
         function showAccountsView() {
             currentView = 'accounts';
@@ -547,7 +604,6 @@
             renderAccounts();
         }
 
-        // Render accounts
         function renderAccounts() {
             const container = document.getElementById('accountsView');
             
@@ -573,7 +629,6 @@
             `;
         }
 
-        // Show Add Account
         function showAddAccount() {
             const container = document.getElementById('detailView');
             container.innerHTML = `
@@ -598,7 +653,6 @@
             setTimeout(() => document.getElementById('newAccountName').focus(), 100);
         }
 
-        // Create account
         async function createAccount() {
             const name = document.getElementById('newAccountName').value.trim();
             if (!name) {
@@ -618,11 +672,10 @@
             };
 
             accounts.push(newAccount);
-            await saveData();
+            await saveAccounts();
             showAccountDetail(newAccount.id);
         }
 
-        // Show account detail
         function showAccountDetail(id) {
             const account = accounts.find(acc => acc.id === id);
             if (!account) return;
@@ -664,7 +717,7 @@
                     </div>
 
                     <div class="button-group">
-                        <button class="btn btn-primary" onclick="saveAccount('${id}')">💾 Lưu</button>
+                        <button class="btn btn-primary" onclick="saveAccount('${id}')">💾 Lưu & Đồng Bộ</button>
                         <button class="btn btn-danger" onclick="deleteAccount('${id}')">🗑️ Xóa</button>
                     </div>
                 </div>
@@ -675,7 +728,6 @@
             document.getElementById('sheetView').classList.add('hidden');
         }
 
-        // Save account
         async function saveAccount(id) {
             const account = accounts.find(acc => acc.id === id);
             if (!account) return;
@@ -687,21 +739,20 @@
             account.threadsLinks = document.getElementById('threadsLinks').value.trim();
             account.tiktokLinks = document.getElementById('tiktokLinks').value.trim();
 
-            await saveData();
-            showNotification('Đã lưu thành công!');
+            await saveAccounts();
         }
 
-        // Delete account
         async function deleteAccount(id) {
             if (!confirm('Bạn có chắc muốn xóa account này?')) return;
 
             accounts = accounts.filter(acc => acc.id !== id);
-            await saveData();
+            await saveAccounts();
             showAccountsView();
         }
 
-        // Show sheet
         function showSheet() {
+            currentView = 'sheet';
+            
             if (sheetData.length === 0) {
                 sheetData.push({
                     id: Date.now().toString(),
@@ -719,7 +770,7 @@
             container.innerHTML = `
                 <button class="btn btn-back" onclick="showAccountsView()">← Quay Lại</button>
                 <div class="sheet-view">
-                    <h2>📊 Bảng Dữ Liệu Team</h2>
+                    <h2>📊 Bảng Dữ Liệu Team - Đồng Bộ Real-time</h2>
                     <div class="sheet-container">
                         <table class="sheet-table">
                             <thead>
@@ -738,9 +789,9 @@
                         </table>
                     </div>
                     <button class="add-row-btn" onclick="addSheetRow()">+ Thêm Dòng</button>
-                    <div class="button-group">
-                        <button class="btn btn-primary" onclick="saveSheet()">💾 Lưu Bảng</button>
-                    </div>
+                    <p style="color: #48bb78; text-align: center; margin-top: 15px; font-weight: 600;">
+                        ✅ Tự động đồng bộ - Mọi người đều thấy thay đổi ngay lập tức
+                    </p>
                 </div>
             `;
 
@@ -753,6 +804,8 @@
 
         function renderSheetTable() {
             const tbody = document.getElementById('sheetTableBody');
+            if (!tbody) return;
+            
             tbody.innerHTML = sheetData.map(row => `
                 <tr>
                     <td><input type="text" value="${row.okvip || ''}" data-id="${row.id}" data-field="okvip" onchange="updateSheetCell(this)"></td>
@@ -767,15 +820,18 @@
             `).join('');
         }
 
-        function updateSheetCell(element) {
+        async function updateSheetCell(element) {
             const id = element.dataset.id;
             const field = element.dataset.field;
             const value = element.value;
             const row = sheetData.find(r => r.id === id);
-            if (row) row[field] = value;
+            if (row) {
+                row[field] = value;
+                await saveSheetData();
+            }
         }
 
-        function addSheetRow() {
+        async function addSheetRow() {
             sheetData.push({
                 id: Date.now().toString(),
                 okvip: '',
@@ -786,23 +842,18 @@
                 threads: '',
                 tiktok: ''
             });
-            renderSheetTable();
+            await saveSheetData();
         }
 
-        function deleteSheetRow(id) {
+        async function deleteSheetRow(id) {
             if (sheetData.length <= 1) {
                 alert('Phải có ít nhất 1 dòng!');
                 return;
             }
             sheetData = sheetData.filter(row => row.id !== id);
-            renderSheetTable();
+            await saveSheetData();
         }
 
-        async function saveSheet() {
-            await saveData();
-        }
-
-        // Modal functions
         function showJoinModal() {
             document.getElementById('joinModal').classList.add('active');
         }
@@ -818,32 +869,29 @@
                 return;
             }
 
-            try {
-                const result = await window.storage.get('accounts_data', true);
-                if (result) {
-                    accounts = JSON.parse(result.value);
-                    shareCode = code;
-                    await saveData();
-                    await saveShareCode();
-                    showAccountsView();
-                    closeModal('joinModal');
-                    showNotification('Đã tham gia team thành công!');
-                } else {
-                    alert('Không tìm thấy dữ liệu!');
-                }
-            } catch (error) {
-                alert('Lỗi khi tham gia team!');
-            }
+            // Stop listening to old team
+            database.ref(`teams/${currentTeamCode}`).off();
+
+            // Switch to new team
+            currentTeamCode = code;
+            localStorage.setItem('okvip_team_code', code);
+
+            // Setup new listeners
+            setupRealtimeListeners();
+
+            closeModal('joinModal');
+            showNotification('✅ Đã tham gia team mới!');
+            updateShareCodeDisplay();
         }
 
         function updateShareCodeDisplay() {
-            document.getElementById('myShareCode').textContent = shareCode || '-';
+            document.getElementById('myShareCode').textContent = currentTeamCode || '-';
         }
 
         function copyShareCode() {
-            if (!shareCode) return;
-            navigator.clipboard.writeText(shareCode).then(() => {
-                showNotification('Đã copy mã!');
+            if (!currentTeamCode) return;
+            navigator.clipboard.writeText(currentTeamCode).then(() => {
+                showNotification('📋 Đã copy mã team!');
             });
         }
 
@@ -861,7 +909,7 @@
             }
         }
 
-        // Initialize
+        // Initialize app
         init();
     </script>
 </body>
