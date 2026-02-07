@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#667eea">
+    <title>OKVIP Team Manager</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .app-container {
+            max-width: 100%;
+            margin: 0 auto;
+            background: #f5f5f5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: #667eea;
+            padding: 15px 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 24px;
+            margin: 0;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: #764ba2;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #6a4291;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #38a169;
+        }
+
+        .btn-back {
+            background: #999;
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        /* Accounts Grid */
+        .accounts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .account-card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .account-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            border: 2px solid #667eea;
+        }
+
+        .account-card h3 {
+            color: #667eea;
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .account-card p {
+            color: #999;
+            font-size: 14px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            background: white;
+            border-radius: 15px;
+            max-width: 600px;
+            margin: 50px auto;
+        }
+
+        .empty-state h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        /* Account Details View */
+        .detail-view {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .detail-view h2 {
+            color: #667eea;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 15px;
+            font-family: inherit;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #eee;
+        }
+
+        /* Sheet View - Google Sheets Style */
+        .sheet-view {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+
+        .sheet-view h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .sheet-container {
+            overflow-x: auto;
+            margin-bottom: 20px;
+        }
+
+        .sheet-table {
+            border-collapse: collapse;
+            width: 100%;
+            min-width: 1000px;
+            border: 2px solid #ccc;
+        }
+
+        .sheet-table th {
+            background: #667eea;
+            color: white;
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+            border: 1px solid #5568d3;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .sheet-table td {
+            padding: 0;
+            border: 1px solid #ddd;
+            background: white;
+            min-height: 40px;
+        }
+
+        .sheet-table input,
+        .sheet-table textarea {
+            width: 100%;
+            border: none;
+            padding: 10px;
+            font-size: 14px;
+            font-family: inherit;
+            background: transparent;
+            min-height: 40px;
+        }
+
+        .sheet-table input:focus,
+        .sheet-table textarea:focus {
+            outline: 2px solid #667eea;
+            background: #f0f4ff;
+        }
+
+        .sheet-table textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .sheet-table .delete-cell {
+            text-align: center;
+            padding: 5px;
+            width: 50px;
+        }
+
+        .delete-row-btn {
+            background: #f56565;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .delete-row-btn:hover {
+            background: #e53e3e;
+        }
+
+        .add-row-btn {
+            background: #48bb78;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            margin-top: 15px;
+        }
+
+        .add-row-btn:hover {
+            background: #38a169;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .modal-header h2 {
+            color: #667eea;
+            font-size: 24px;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #999;
+            line-height: 1;
+        }
+
+        .close-btn:hover {
+            color: #333;
+        }
+
+        .share-code {
+            background: #667eea;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 24px;
+            text-align: center;
+            font-weight: bold;
+            letter-spacing: 3px;
+            color: white;
+            margin: 20px 0;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #48bb78;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            z-index: 2000;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .header-buttons {
+                flex-direction: column;
+            }
+
+            .accounts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .sheet-container {
+                overflow-x: scroll;
+            }
+
+            .detail-view {
+                padding: 20px;
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="header">
+            <h1>🎯 OKVIP Team Manager</h1>
+            <div class="header-buttons">
+                <button class="btn btn-primary" onclick="showAddAccount()">+ Thêm Account</button>
+                <button class="btn btn-secondary" onclick="showSheet()">📊 Bảng Dữ Liệu</button>
+                <button class="btn btn-secondary" onclick="showJoinModal()">🔗 Tham Gia Team</button>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <!-- Accounts List View -->
+            <div id="accountsView"></div>
+
+            <!-- Account Detail View -->
+            <div id="detailView" class="hidden"></div>
+
+            <!-- Sheet View -->
+            <div id="sheetView" class="hidden"></div>
+        </div>
+    </div>
+
+    <!-- Join Team Modal -->
+    <div id="joinModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Tham Gia Team</h2>
+                <button class="close-btn" onclick="closeModal('joinModal')">&times;</button>
+            </div>
+
+            <div class="form-group">
+                <label>Nhập Mã Chia Sẻ</label>
+                <input type="text" id="shareCodeInput" placeholder="Nhập mã 8 ký tự...">
+            </div>
+
+            <button class="btn btn-primary" style="width: 100%; margin-bottom: 20px;" onclick="joinTeam()">Tham Gia</button>
+
+            <div style="background: #f7fafc; padding: 20px; border-radius: 10px;">
+                <h3 style="color: #667eea; margin-bottom: 15px;">📤 Mã Của Bạn</h3>
+                <div class="share-code" id="myShareCode">-</div>
+                <button class="btn btn-secondary" style="width: 100%;" onclick="copyShareCode()">📋 Copy Mã</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let accounts = [];
+        let sheetData = [];
+        let shareCode = null;
+        let currentView = 'accounts';
+
+        // Initialize
+        async function init() {
+            await loadData();
+            showAccountsView();
+            updateShareCodeDisplay();
+        }
+
+        // Load data
+        async function loadData() {
+            try {
+                const codeResult = await window.storage.get('team_share_code', true);
+                if (codeResult) shareCode = codeResult.value;
+
+                const accountsResult = await window.storage.get('accounts_data', true);
+                if (accountsResult) accounts = JSON.parse(accountsResult.value);
+
+                const sheetResult = await window.storage.get('sheet_data', true);
+                if (sheetResult) sheetData = JSON.parse(sheetResult.value);
+            } catch (error) {
+                if (!shareCode) {
+                    shareCode = generateShareCode();
+                    await saveShareCode();
+                }
+            }
+        }
+
+        // Save data
+        async function saveData() {
+            try {
+                await window.storage.set('accounts_data', JSON.stringify(accounts), true);
+                await window.storage.set('sheet_data', JSON.stringify(sheetData), true);
+                showNotification('Đã lưu dữ liệu!');
+            } catch (error) {
+                console.error('Save error:', error);
+            }
+        }
+
+        async function saveShareCode() {
+            try {
+                await window.storage.set('team_share_code', shareCode, true);
+            } catch (error) {
+                console.error('Error saving share code:', error);
+            }
+        }
+
+        function generateShareCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let code = '';
+            for (let i = 0; i < 8; i++) {
+                code += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return code;
+        }
+
+        // Show Accounts View
+        function showAccountsView() {
+            currentView = 'accounts';
+            document.getElementById('accountsView').classList.remove('hidden');
+            document.getElementById('detailView').classList.add('hidden');
+            document.getElementById('sheetView').classList.add('hidden');
+            renderAccounts();
+        }
+
+        // Render accounts
+        function renderAccounts() {
+            const container = document.getElementById('accountsView');
+            
+            if (accounts.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h2>Chưa có account nào</h2>
+                        <p>Nhấn "Thêm Account" để bắt đầu hoặc "Tham Gia Team" để đồng bộ</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="accounts-grid">
+                    ${accounts.map(acc => `
+                        <div class="account-card" onclick="showAccountDetail('${acc.id}')">
+                            <h3>${acc.accountName}</h3>
+                            <p>Click để xem chi tiết</p>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // Show Add Account
+        function showAddAccount() {
+            const container = document.getElementById('detailView');
+            container.innerHTML = `
+                <button class="btn btn-back" onclick="showAccountsView()">← Quay Lại</button>
+                <div class="detail-view">
+                    <h2>Thêm Account OKVIP</h2>
+                    <div class="form-group">
+                        <label>Tên Account OKVIP</label>
+                        <input type="text" id="newAccountName" placeholder="Nhập tên account...">
+                    </div>
+                    <div class="button-group">
+                        <button class="btn btn-primary" onclick="createAccount()">Tạo Account</button>
+                        <button class="btn btn-secondary" onclick="showAccountsView()">Hủy</button>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('accountsView').classList.add('hidden');
+            container.classList.remove('hidden');
+            document.getElementById('sheetView').classList.add('hidden');
+            
+            setTimeout(() => document.getElementById('newAccountName').focus(), 100);
+        }
+
+        // Create account
+        async function createAccount() {
+            const name = document.getElementById('newAccountName').value.trim();
+            if (!name) {
+                alert('Vui lòng nhập tên account!');
+                return;
+            }
+
+            const newAccount = {
+                id: Date.now().toString(),
+                accountName: name,
+                teleName: '',
+                phoneNumber: '',
+                facebookLinks: '',
+                telegramLinks: '',
+                threadsLinks: '',
+                tiktokLinks: ''
+            };
+
+            accounts.push(newAccount);
+            await saveData();
+            showAccountDetail(newAccount.id);
+        }
+
+        // Show account detail
+        function showAccountDetail(id) {
+            const account = accounts.find(acc => acc.id === id);
+            if (!account) return;
+
+            const container = document.getElementById('detailView');
+            container.innerHTML = `
+                <button class="btn btn-back" onclick="showAccountsView()">← Quay Lại</button>
+                <div class="detail-view">
+                    <h2>${account.accountName}</h2>
+                    
+                    <div class="form-group">
+                        <label>TÊN</label>
+                        <input type="text" id="teleName" value="${account.teleName || ''}">
+                    </div>
+
+                    <div class="form-group">
+                        <label>SĐT</label>
+                        <input type="text" id="phoneNumber" value="${account.phoneNumber || ''}">
+                    </div>
+
+                    <div class="form-group">
+                        <label>FACEBOOK</label>
+                        <textarea id="facebookLinks" rows="7">${account.facebookLinks || ''}</textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>TELEGRAM</label>
+                        <textarea id="telegramLinks" rows="14">${account.telegramLinks || ''}</textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>THREADS</label>
+                        <textarea id="threadsLinks" rows="3">${account.threadsLinks || ''}</textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>TIKTOK</label>
+                        <textarea id="tiktokLinks" rows="3">${account.tiktokLinks || ''}</textarea>
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn btn-primary" onclick="saveAccount('${id}')">💾 Lưu</button>
+                        <button class="btn btn-danger" onclick="deleteAccount('${id}')">🗑️ Xóa</button>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('accountsView').classList.add('hidden');
+            container.classList.remove('hidden');
+            document.getElementById('sheetView').classList.add('hidden');
+        }
+
+        // Save account
+        async function saveAccount(id) {
+            const account = accounts.find(acc => acc.id === id);
+            if (!account) return;
+
+            account.teleName = document.getElementById('teleName').value.trim();
+            account.phoneNumber = document.getElementById('phoneNumber').value.trim();
+            account.facebookLinks = document.getElementById('facebookLinks').value.trim();
+            account.telegramLinks = document.getElementById('telegramLinks').value.trim();
+            account.threadsLinks = document.getElementById('threadsLinks').value.trim();
+            account.tiktokLinks = document.getElementById('tiktokLinks').value.trim();
+
+            await saveData();
+            showNotification('Đã lưu thành công!');
+        }
+
+        // Delete account
+        async function deleteAccount(id) {
+            if (!confirm('Bạn có chắc muốn xóa account này?')) return;
+
+            accounts = accounts.filter(acc => acc.id !== id);
+            await saveData();
+            showAccountsView();
+        }
+
+        // Show sheet
+        function showSheet() {
+            if (sheetData.length === 0) {
+                sheetData.push({
+                    id: Date.now().toString(),
+                    okvip: '',
+                    owner: '',
+                    tele: '',
+                    facebook: '',
+                    telegram: '',
+                    threads: '',
+                    tiktok: ''
+                });
+            }
+
+            const container = document.getElementById('sheetView');
+            container.innerHTML = `
+                <button class="btn btn-back" onclick="showAccountsView()">← Quay Lại</button>
+                <div class="sheet-view">
+                    <h2>📊 Bảng Dữ Liệu Team</h2>
+                    <div class="sheet-container">
+                        <table class="sheet-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 150px;">Tên acc OKVIP</th>
+                                    <th style="width: 120px;">Acc Okvip Của</th>
+                                    <th style="width: 150px;">Tên acc Tele và SĐT</th>
+                                    <th style="width: 180px;">Tên acc Facebook</th>
+                                    <th style="width: 180px;">Tên acc Telegram</th>
+                                    <th style="width: 180px;">Tên acc Threads</th>
+                                    <th style="width: 180px;">Tên acc Tiktok</th>
+                                    <th style="width: 50px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="sheetTableBody"></tbody>
+                        </table>
+                    </div>
+                    <button class="add-row-btn" onclick="addSheetRow()">+ Thêm Dòng</button>
+                    <div class="button-group">
+                        <button class="btn btn-primary" onclick="saveSheet()">💾 Lưu Bảng</button>
+                    </div>
+                </div>
+            `;
+
+            renderSheetTable();
+
+            document.getElementById('accountsView').classList.add('hidden');
+            document.getElementById('detailView').classList.add('hidden');
+            container.classList.remove('hidden');
+        }
+
+        function renderSheetTable() {
+            const tbody = document.getElementById('sheetTableBody');
+            tbody.innerHTML = sheetData.map(row => `
+                <tr>
+                    <td><input type="text" value="${row.okvip || ''}" data-id="${row.id}" data-field="okvip" onchange="updateSheetCell(this)"></td>
+                    <td><input type="text" value="${row.owner || ''}" data-id="${row.id}" data-field="owner" onchange="updateSheetCell(this)" placeholder="Tên của bạn"></td>
+                    <td><textarea data-id="${row.id}" data-field="tele" onchange="updateSheetCell(this)">${row.tele || ''}</textarea></td>
+                    <td><textarea data-id="${row.id}" data-field="facebook" onchange="updateSheetCell(this)">${row.facebook || ''}</textarea></td>
+                    <td><textarea data-id="${row.id}" data-field="telegram" onchange="updateSheetCell(this)">${row.telegram || ''}</textarea></td>
+                    <td><textarea data-id="${row.id}" data-field="threads" onchange="updateSheetCell(this)">${row.threads || ''}</textarea></td>
+                    <td><textarea data-id="${row.id}" data-field="tiktok" onchange="updateSheetCell(this)">${row.tiktok || ''}</textarea></td>
+                    <td class="delete-cell"><button class="delete-row-btn" onclick="deleteSheetRow('${row.id}')">✕</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function updateSheetCell(element) {
+            const id = element.dataset.id;
+            const field = element.dataset.field;
+            const value = element.value;
+            const row = sheetData.find(r => r.id === id);
+            if (row) row[field] = value;
+        }
+
+        function addSheetRow() {
+            sheetData.push({
+                id: Date.now().toString(),
+                okvip: '',
+                owner: '',
+                tele: '',
+                facebook: '',
+                telegram: '',
+                threads: '',
+                tiktok: ''
+            });
+            renderSheetTable();
+        }
+
+        function deleteSheetRow(id) {
+            if (sheetData.length <= 1) {
+                alert('Phải có ít nhất 1 dòng!');
+                return;
+            }
+            sheetData = sheetData.filter(row => row.id !== id);
+            renderSheetTable();
+        }
+
+        async function saveSheet() {
+            await saveData();
+        }
+
+        // Modal functions
+        function showJoinModal() {
+            document.getElementById('joinModal').classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        async function joinTeam() {
+            const code = document.getElementById('shareCodeInput').value.trim().toUpperCase();
+            if (!code || code.length !== 8) {
+                alert('Vui lòng nhập mã 8 ký tự!');
+                return;
+            }
+
+            try {
+                const result = await window.storage.get('accounts_data', true);
+                if (result) {
+                    accounts = JSON.parse(result.value);
+                    shareCode = code;
+                    await saveData();
+                    await saveShareCode();
+                    showAccountsView();
+                    closeModal('joinModal');
+                    showNotification('Đã tham gia team thành công!');
+                } else {
+                    alert('Không tìm thấy dữ liệu!');
+                }
+            } catch (error) {
+                alert('Lỗi khi tham gia team!');
+            }
+        }
+
+        function updateShareCodeDisplay() {
+            document.getElementById('myShareCode').textContent = shareCode || '-';
+        }
+
+        function copyShareCode() {
+            if (!shareCode) return;
+            navigator.clipboard.writeText(shareCode).then(() => {
+                showNotification('Đã copy mã!');
+            });
+        }
+
+        function showNotification(message) {
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 3000);
+        }
+
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.classList.remove('active');
+            }
+        }
+
+        // Initialize
+        init();
+    </script>
+</body>
+</html>
