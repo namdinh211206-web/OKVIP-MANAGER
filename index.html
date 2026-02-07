@@ -421,6 +421,11 @@
                 align-items: stretch;
             }
 
+            .header > div:first-child {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
             .header-buttons {
                 flex-direction: column;
             }
@@ -462,7 +467,12 @@
 <body>
     <div class="app-container">
         <div class="header">
-            <h1>🎯 OKVIP Team Manager <span class="sync-indicator" id="syncIndicator"></span></h1>
+            <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                <h1>🎯 OKVIP Team Manager <span class="sync-indicator" id="syncIndicator"></span></h1>
+                <div style="background: rgba(255,255,255,0.2); padding: 8px 15px; border-radius: 8px; font-size: 14px; color: white; font-weight: 600;">
+                    Team: <span id="headerTeamCode">-</span>
+                </div>
+            </div>
             <div class="header-buttons">
                 <button class="btn btn-primary" onclick="showAddAccount()">+ Thêm Account</button>
                 <button class="btn btn-secondary" onclick="showSheet()">📊 Bảng Dữ Liệu</button>
@@ -508,7 +518,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 
     <script>
-        // Firebase Configuration
+        // Firebase Configuration - REPLACE WITH YOUR OWN CONFIG
         const firebaseConfig = {
             apiKey: "AIzaSyBXOCKEPPLH8vN9VqYYqQZ8mN_Vh4HxLqw",
             authDomain: "okvip-manager.firebaseapp.com",
@@ -520,13 +530,19 @@
         };
 
         // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
+        let app, database;
+        try {
+            app = firebase.initializeApp(firebaseConfig);
+            database = firebase.database();
+        } catch (error) {
+            console.error("Firebase init error:", error);
+        }
 
         let currentTeamCode = null;
         let accounts = [];
         let sheetData = [];
         let currentView = 'accounts';
+        let isInitialized = false;
 
         // Initialize
         async function init() {
@@ -538,32 +554,78 @@
                 localStorage.setItem('okvip_team_code', currentTeamCode);
             }
 
+            console.log('Initializing with team code:', currentTeamCode);
+
+            // Update team code display
+            updateTeamCodeDisplay();
+
             // Setup real-time listeners
             setupRealtimeListeners();
             
-            // Show UI
-            document.getElementById('loadingScreen').classList.add('hidden');
-            showAccountsView();
-            updateShareCodeDisplay();
+            // Mark as initialized
+            isInitialized = true;
+
+            // Show UI after a short delay to ensure Firebase connection
+            setTimeout(() => {
+                document.getElementById('loadingScreen').classList.add('hidden');
+                showAccountsView();
+                updateShareCodeDisplay();
+            }, 500);
+        }
+
+        function updateTeamCodeDisplay() {
+            const headerElement = document.getElementById('headerTeamCode');
+            if (headerElement) {
+                headerElement.textContent = currentTeamCode || '-';
+            }
         }
 
         function setupRealtimeListeners() {
+            if (!database || !currentTeamCode) {
+                console.error('Database or team code not available');
+                return;
+            }
+
+            console.log('Setting up listeners for team:', currentTeamCode);
+
             // Listen to accounts changes
             database.ref(`teams/${currentTeamCode}/accounts`).on('value', (snapshot) => {
+                console.log('Accounts updated from Firebase');
                 const data = snapshot.val();
-                accounts = data ? Object.values(data) : [];
-                if (currentView === 'accounts') {
+                
+                if (data) {
+                    // Convert object to array
+                    accounts = Object.keys(data).map(key => data[key]);
+                    console.log('Loaded accounts:', accounts.length);
+                } else {
+                    accounts = [];
+                    console.log('No accounts found');
+                }
+                
+                if (currentView === 'accounts' && isInitialized) {
                     renderAccounts();
                 }
+            }, (error) => {
+                console.error('Error reading accounts:', error);
             });
 
             // Listen to sheet data changes
             database.ref(`teams/${currentTeamCode}/sheetData`).on('value', (snapshot) => {
+                console.log('Sheet data updated from Firebase');
                 const data = snapshot.val();
-                sheetData = data ? Object.values(data) : [];
-                if (currentView === 'sheet') {
+                
+                if (data) {
+                    sheetData = Object.keys(data).map(key => data[key]);
+                    console.log('Loaded sheet rows:', sheetData.length);
+                } else {
+                    sheetData = [];
+                }
+                
+                if (currentView === 'sheet' && isInitialized) {
                     renderSheetTable();
                 }
+            }, (error) => {
+                console.error('Error reading sheet data:', error);
             });
         }
 
@@ -578,21 +640,49 @@
 
         // Save to Firebase
         async function saveAccounts() {
-            const accountsObj = {};
-            accounts.forEach(acc => {
-                accountsObj[acc.id] = acc;
-            });
-            await database.ref(`teams/${currentTeamCode}/accounts`).set(accountsObj);
-            showNotification('✅ Đã đồng bộ với team!');
+            if (!database || !currentTeamCode) {
+                console.error('Cannot save: database or team code missing');
+                showNotification('❌ Lỗi kết nối!');
+                return;
+            }
+
+            try {
+                const accountsObj = {};
+                accounts.forEach(acc => {
+                    accountsObj[acc.id] = acc;
+                });
+                
+                console.log('Saving accounts to Firebase:', Object.keys(accountsObj).length);
+                await database.ref(`teams/${currentTeamCode}/accounts`).set(accountsObj);
+                console.log('Accounts saved successfully');
+                showNotification('✅ Đã đồng bộ với team!');
+            } catch (error) {
+                console.error('Error saving accounts:', error);
+                showNotification('❌ Lỗi lưu dữ liệu!');
+            }
         }
 
         async function saveSheetData() {
-            const sheetObj = {};
-            sheetData.forEach(row => {
-                sheetObj[row.id] = row;
-            });
-            await database.ref(`teams/${currentTeamCode}/sheetData`).set(sheetObj);
-            showNotification('✅ Đã đồng bộ bảng dữ liệu!');
+            if (!database || !currentTeamCode) {
+                console.error('Cannot save: database or team code missing');
+                showNotification('❌ Lỗi kết nối!');
+                return;
+            }
+
+            try {
+                const sheetObj = {};
+                sheetData.forEach(row => {
+                    sheetObj[row.id] = row;
+                });
+                
+                console.log('Saving sheet data to Firebase:', Object.keys(sheetObj).length);
+                await database.ref(`teams/${currentTeamCode}/sheetData`).set(sheetObj);
+                console.log('Sheet data saved successfully');
+                showNotification('✅ Đã đồng bộ bảng dữ liệu!');
+            } catch (error) {
+                console.error('Error saving sheet data:', error);
+                showNotification('❌ Lỗi lưu dữ liệu!');
+            }
         }
 
         // Show Accounts View
@@ -869,6 +959,11 @@
                 return;
             }
 
+            if (!database) {
+                alert('Lỗi kết nối Firebase!');
+                return;
+            }
+
             // Stop listening to old team
             database.ref(`teams/${currentTeamCode}`).off();
 
@@ -876,16 +971,25 @@
             currentTeamCode = code;
             localStorage.setItem('okvip_team_code', code);
 
+            // Update displays
+            updateTeamCodeDisplay();
+            updateShareCodeDisplay();
+
             // Setup new listeners
             setupRealtimeListeners();
 
             closeModal('joinModal');
-            showNotification('✅ Đã tham gia team mới!');
-            updateShareCodeDisplay();
+            showNotification('✅ Đã tham gia team: ' + code);
+            
+            // Refresh view
+            showAccountsView();
         }
 
         function updateShareCodeDisplay() {
-            document.getElementById('myShareCode').textContent = currentTeamCode || '-';
+            const element = document.getElementById('myShareCode');
+            if (element) {
+                element.textContent = currentTeamCode || '-';
+            }
         }
 
         function copyShareCode() {
